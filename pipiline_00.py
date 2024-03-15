@@ -45,19 +45,27 @@ def download_files_gdown(url_folder, local_dir):
     gdown.download_folder(url_folder, output=local_dir, quiet=False, use_cookies=False)
 
 
-def list_csv_files(directory):
-    csv_files = []
-    all_files = os.listdir(directory)
-    for file in all_files:
-        if file.endswith(".csv"):
-            complete_path = os.path.join(directory, file)
-            csv_files.append(complete_path)
-    return csv_files
+def list_files(directory):
+    """Lists files and identifies CSV, JSON or Parquet."""
+    files_and_types = []
+    for file in os.listdir(directory):
+        if file.endswith(".csv") or file.endswith(".json") or file.endswith(".parquet"):
+            complete_file_path = os.path.join(directory, file)
+            file_type = file.split(".")[-1]
+            files_and_types.append((complete_file_path, file_type))
+    return files_and_types
 
 
-def read_csv(file_path):
-    dataframe_duckdb = duckdb.read_csv(file_path)
-    return dataframe_duckdb
+def read_files(file_path, file_type):
+    """Reads the file according to its type and returns a DataFrame."""
+    if file_type == 'csv':
+        return duckdb.read_csv(file_path)
+    elif file_type == 'json':
+        return pd.read_json(file_path)
+    elif file_type == 'parquet':
+        return pd.read_parquet(file_path)
+    else:
+        raise ValueError(f"Tipo de arquivo não suportado: {file_type}")
 
 
 def transform(df: DuckDBPyRelation) -> DataFrame:
@@ -73,23 +81,33 @@ def save_to_postgres(df_duckdb, param_table):
     df_duckdb.to_sql(param_table, con=engine, if_exists='append', index=False)
 
 
-if __name__ == '__main__':
+def pipiline():
     url_folder = 'https://drive.google.com/drive/folders/1maqV7E3NRlHp12CsI4dvrCFYwYi7BAAf'
     local_dir = './folder_gdown'
-    #download_files_gdown(url_folder, local_dir)
-    files_list = list_csv_files(local_dir)
+
+    download_files_gdown(url_folder, local_dir)
     con = conn_database()
     init_table(con)
     processed = processed_files(con)
+    files_and_types = list_files(local_dir)
 
-    for file_path in files_list:
+    logs = []
+    for file_path, file_type in files_and_types:
         file_name = os.path.basename(file_path)
         if file_name not in processed:
 
-            dataframe_duckdb = read_csv(file_path)
+            dataframe_duckdb = read_files(file_path, file_type)
             pandas_df_transformed =  transform(dataframe_duckdb)
             register_file(con, file_name)
             print(f"Arquivo {file_name} processado e salvo.")
             save_to_postgres(pandas_df_transformed, 'vendas_calculado')
+            logs.append(f"Arquivo {file_name} processado e salvo.")
+            
         else:
             print(f"Arquivo {file_name} já foi processado anteriormente.")
+            logs.append(f"Arquivo {file_name} já foi processado anteriormente.")
+    return logs
+
+
+if __name__ == '__main__':
+    pipiline()
