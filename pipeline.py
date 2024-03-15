@@ -81,7 +81,7 @@ def save_to_postgres(df_duckdb, param_table):
     df_duckdb.to_sql(param_table, con=engine, if_exists='append', index=False)
 
 
-def pipiline():
+def pipeline():
     url_folder = 'https://drive.google.com/drive/folders/1maqV7E3NRlHp12CsI4dvrCFYwYi7BAAf'
     local_dir = './folder_gdown'
 
@@ -110,4 +110,4 @@ def pipiline():
 
 
 if __name__ == '__main__':
-    pipiline()
+    pipeline()

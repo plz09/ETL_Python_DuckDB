@@ -1,8 +1,10 @@
 import streamlit as st
+from pipeline import pipeline
 
-def main():
-    st.write("Olá jornada ETL")
+st.title('File Processor')
 
-if __name__ == "__main__":
-    main()
-
+if st.button('Process'):
+    with st.spinner('Processing...'):
+        logs = pipeline()
+        for log in logs:
+            st.write(log)
